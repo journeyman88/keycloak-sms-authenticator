@@ -2,17 +2,19 @@ package com.alliander.keycloak.authenticator;
 
 import org.jboss.logging.Logger;
 import org.keycloak.models.AuthenticatorConfigModel;
-import org.keycloak.models.UserCredentialValueModel;
+import org.keycloak.models.UserCredentialManager;
 import org.keycloak.models.UserModel;
 
 import java.util.List;
+import org.keycloak.credential.CredentialModel;
+import org.keycloak.models.RealmModel;
 
 /**
  * Created by joris on 18/11/2016.
  */
-public class SMSAuthenticatorUtil {
+public class KeycloakSmsAuthenticatorUtil {
 
-    private static Logger logger = Logger.getLogger(SMSAuthenticatorUtil.class);
+    private static Logger logger = Logger.getLogger(KeycloakSmsAuthenticatorUtil.class);
 
     public static String getAttributeValue(UserModel user, String attributeName) {
         String result = null;
@@ -25,15 +27,14 @@ public class SMSAuthenticatorUtil {
     }
 
 
-    public static String getCredentialValue(UserModel user, String credentialName) {
+    public static String getCredentialValue(UserCredentialManager credMan, RealmModel realm, UserModel user, String credentialName) {
         String result = null;
-        List<UserCredentialValueModel> creds = user.getCredentialsDirectly();
-        for (UserCredentialValueModel cred : creds) {
+        List<CredentialModel> creds = credMan.getStoredCredentialsByType(realm, user, credentialName);
+        for (CredentialModel cred : creds) {
             if(cred.getType().equals(credentialName)) {
                 result = cred.getValue();
             }
         }
-
         return result;
     }
 
