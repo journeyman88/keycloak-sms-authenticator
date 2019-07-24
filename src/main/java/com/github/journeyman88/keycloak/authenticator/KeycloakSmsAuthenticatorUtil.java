@@ -1,4 +1,4 @@
-package com.alliander.keycloak.authenticator;
+package com.github.journeyman88.keycloak.authenticator;
 
 import org.jboss.logging.Logger;
 import org.keycloak.models.AuthenticatorConfigModel;
@@ -29,13 +29,31 @@ public class KeycloakSmsAuthenticatorUtil {
 
     public static String getCredentialValue(UserCredentialManager credMan, RealmModel realm, UserModel user, String credentialName) {
         String result = null;
-        List<CredentialModel> creds = credMan.getStoredCredentialsByType(realm, user, credentialName);
+        List<CredentialModel> creds = credMan.getStoredCredentials(realm, user);
         for (CredentialModel cred : creds) {
+            logger.info(cred.getValue());
+            logger.info(cred.getType());
             if(cred.getType().equals(credentialName)) {
                 result = cred.getValue();
             }
         }
         return result;
+    }
+
+    public static Boolean getConfigBoolean(AuthenticatorConfigModel config, String configName) {
+        return getConfigBoolean(config, configName, null);
+    }
+
+    public static Boolean getConfigBoolean(AuthenticatorConfigModel config, String configName, Boolean defaultValue) {
+
+        Boolean value = defaultValue;
+
+        if (config.getConfig() != null) {
+            // Get value
+            value = config.getConfig().get(configName).equalsIgnoreCase("true");
+        }
+
+        return value;
     }
 
     public static String getConfigString(AuthenticatorConfigModel config, String configName) {

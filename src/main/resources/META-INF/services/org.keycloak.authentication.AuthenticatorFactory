@@ -1,1 +1,1 @@
-com.alliander.keycloak.authenticator.KeycloakSmsAuthenticatorFactory
+com.github.journeyman88.keycloak.authenticator.KeycloakSmsAuthenticatorFactory
