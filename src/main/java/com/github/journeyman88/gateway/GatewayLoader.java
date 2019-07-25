@@ -6,14 +6,12 @@
 package com.github.journeyman88.gateway;
 
 import com.github.journeyman88.gateway.fakesms.FakeSmsProvider;
+import com.github.journeyman88.gateway.comilio.ComilioProvider;
 import com.github.journeyman88.gateway.smshosting.SmsHostingProvider;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-import java.util.ServiceLoader;
-import java.util.Set;
 import org.jboss.logging.Logger;
 
 /**
@@ -23,12 +21,13 @@ import org.jboss.logging.Logger;
 public class GatewayLoader {
     
     private static final Logger LOGGER = Logger.getLogger(GatewayLoader.class);
-    private static final Set<GatewayProvider> PROVIDERS;
+    private static final List<GatewayProvider> PROVIDERS;
     
     static {
-        PROVIDERS = new HashSet<>();
+        PROVIDERS = new ArrayList<>();
         PROVIDERS.add(new FakeSmsProvider());
         PROVIDERS.add(new SmsHostingProvider());
+        PROVIDERS.add(new ComilioProvider());
     }
     
     public List<String> getProviderIds() {

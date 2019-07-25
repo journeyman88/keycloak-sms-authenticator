@@ -39,7 +39,18 @@ public class KeycloakSmsAuthenticator implements Authenticator {
         INVALID,
         EXPIRED
     }
-
+    
+    private boolean checkOnce(AuthenticationFlowContext context)
+    {
+        boolean retVal = false;
+        if (KeycloakSmsAuthenticatorUtil.getConfigBoolean(context.getAuthenticatorConfig(), KeycloakSmsAuthenticatorContstants.CONF_PRP_SMS_ONCE, false))
+        {
+            LOGGER.info("Verify once is active.");
+            String once = KeycloakSmsAuthenticatorUtil.getAttributeValue(context.getUser(), KeycloakSmsAuthenticatorContstants.USER_ATTRIBUTE_VALIDATION);
+            retVal = ((once != null) && (once.equalsIgnoreCase("done")));
+        }
+        return retVal;
+    }
 
     @Override
     public void authenticate(AuthenticationFlowContext context) {
@@ -47,16 +58,11 @@ public class KeycloakSmsAuthenticator implements Authenticator {
         
         AuthenticatorConfigModel config = context.getAuthenticatorConfig();
         
-        if (KeycloakSmsAuthenticatorUtil.getConfigBoolean(config, KeycloakSmsAuthenticatorContstants.CONF_PRP_SMS_ONCE))
+        if (checkOnce(context))
         {
-            LOGGER.debug("Verify once is active.");
-            String once = KeycloakSmsAuthenticatorUtil.getAttributeValue(context.getUser(), KeycloakSmsAuthenticatorContstants.USER_ATTRIBUTE_VALIDATION);
-            if ((once != null) && (once.equalsIgnoreCase("done")))
-            {
-                LOGGER.info("User already verified.");
-                context.success();
-                return;
-            }
+            LOGGER.info("User already verified.");
+            context.success();
+            return;
         }
         
         String mobileNumberAttribute = KeycloakSmsAuthenticatorUtil.getConfigString(config, KeycloakSmsAuthenticatorContstants.CONF_PRP_USR_ATTR_MOBILE);
@@ -109,16 +115,12 @@ public class KeycloakSmsAuthenticator implements Authenticator {
         
         LOGGER.debug("action called ... context = " + context);
         
-        if (KeycloakSmsAuthenticatorUtil.getConfigBoolean(context.getAuthenticatorConfig(), KeycloakSmsAuthenticatorContstants.CONF_PRP_SMS_ONCE))
+        
+        if (checkOnce(context))
         {
-            LOGGER.debug("Verify once is active.");
-            String once = KeycloakSmsAuthenticatorUtil.getAttributeValue(context.getUser(), KeycloakSmsAuthenticatorContstants.USER_ATTRIBUTE_VALIDATION);
-            if ((once != null) && (once.equalsIgnoreCase("done")))
-            {
-                LOGGER.info("User already verified.");
-                context.success();
-                return;
-            }
+            LOGGER.info("User already verified.");
+            context.success();
+            return;
         }
         CODE_STATUS status = validateCode(context);
         Response challenge = null;
@@ -147,12 +149,14 @@ public class KeycloakSmsAuthenticator implements Authenticator {
                         LOGGER.warn("Undefined execution ...");
                         break;
                 }
-//                context.getUser().setEnabled(false);
                 break;
 
 
             case VALID:
-                context.getUser().setAttribute(KeycloakSmsAuthenticatorContstants.USER_ATTRIBUTE_VALIDATION, Arrays.asList(new String [] {"done"}));
+                if (KeycloakSmsAuthenticatorUtil.getConfigBoolean(context.getAuthenticatorConfig(), KeycloakSmsAuthenticatorContstants.CONF_PRP_SMS_ONCE))
+                {
+                    context.getUser().setAttribute(KeycloakSmsAuthenticatorContstants.USER_ATTRIBUTE_VALIDATION, Arrays.asList(new String [] {"done"}));
+                }
                 context.success();
                 break;
 
@@ -261,103 +265,6 @@ public class KeycloakSmsAuthenticator implements Authenticator {
         GatewayProvider provider = loader.getProvider(smsSrv);
         return provider.sendSms(smsUsr, smsPwd, smsFrom, mobileNumber, smsText);
         
-
-//        String smsUrl = KeycloakSmsAuthenticatorUtil.getConfigString(config, KeycloakSmsAuthenticatorContstants.CONF_PRP_SMS_URL);
-//        String smsUsr = KeycloakSmsAuthenticatorUtil.getConfigString(config, KeycloakSmsAuthenticatorContstants.CONF_PRP_SMS_USERNAME);
-//        String smsPwd = KeycloakSmsAuthenticatorUtil.getConfigString(config, KeycloakSmsAuthenticatorContstants.CONF_PRP_SMS_PASSWORD);
-//        
-//        String proxyUrl = KeycloakSmsAuthenticatorUtil.getConfigString(config, KeycloakSmsAuthenticatorContstants.CONF_PRP_PROXY_URL);
-//        String proxyUsr = KeycloakSmsAuthenticatorUtil.getConfigString(config, KeycloakSmsAuthenticatorContstants.CONF_PRP_PROXY_USERNAME);
-//        String proxyPwd = KeycloakSmsAuthenticatorUtil.getConfigString(config, KeycloakSmsAuthenticatorContstants.CONF_PRP_PROXY_PASSWORD);
-//        String contentType = KeycloakSmsAuthenticatorUtil.getConfigString(config, KeycloakSmsAuthenticatorContstants.CONF_PRP_CONTENT_TYPE);
-//
-//        CloseableHttpClient httpClient = null;
-//        try {
-//            URL smsURL = (smsUrl != null && smsUrl.length() > 0) ? new URL(smsUrl) : null;
-//            URL proxyURL = (proxyUrl != null && proxyUrl.length() > 0) ? new URL(proxyUrl) : null;
-//
-//            if(smsURL == null) {
-//                LOGGER.error("SMS gateway URL is not configured.");
-//                return false;
-//            }
-//
-//
-//            CredentialsProvider credsProvider;
-//            if(KeycloakSmsAuthenticatorUtil.getConfigString(config, KeycloakSmsAuthenticatorContstants.CONF_PRP_SMS_AUTHTYPE, "").equals(KeycloakSmsAuthenticatorContstants.AUTH_METHOD_INMESSAGE)) {
-//                credsProvider = getCredentialsProvider(null, null, proxyUsr, proxyPwd, smsURL, proxyURL);
-//            } else {
-//                credsProvider = getCredentialsProvider(smsUsr, smsPwd, proxyUsr, proxyPwd, smsURL, proxyURL);
-//            }
-//
-//            HttpHost target = new HttpHost(smsURL.getHost(), smsURL.getPort(), smsURL.getProtocol());
-//            HttpHost proxy = (proxyURL != null) ? new HttpHost(proxyURL.getHost(), proxyURL.getPort(), proxyURL.getProtocol()) : null;
-//
-//            httpClient = HttpClients.custom()
-//                    .setDefaultCredentialsProvider(credsProvider)
-//                    .build();
-//
-//            RequestConfig requestConfig;
-//                requestConfig = RequestConfig.custom()
-//                        .setProxy(proxy)
-//                        .build();
-//
-//            String httpMethod = KeycloakSmsAuthenticatorUtil.getConfigString(config, KeycloakSmsAuthenticatorContstants.CONF_PRP_SMS_METHOD);
-//            String smsText = createMessage(code, mobileNumber, config);
-//            if(httpMethod.equals(HttpMethod.GET)) {
-//
-//                String path = getPath(mobileNumber, smsURL, smsText);
-//
-//                HttpGet httpGet = new HttpGet(path);
-//                httpGet.setConfig(requestConfig);
-//                if(isNotEmpty(contentType)) {
-//                    httpGet.addHeader("Content-type", contentType);
-//                }
-//
-//                LOGGER.debug("Executing request " + httpGet.getRequestLine() + " to " + target + " via " + proxy);
-//
-//                CloseableHttpResponse response = httpClient.execute(target, httpGet);
-//                StatusLine sl = response.getStatusLine();
-//                response.close();
-//                if(sl.getStatusCode() != 200) {
-//                    LOGGER.error("SMS code for " + mobileNumber + " could not be sent: " + sl.getStatusCode() +  " - " + sl.getReasonPhrase());
-//                }
-//                return sl.getStatusCode() == 200;
-//
-//            } else if (httpMethod.equals(HttpMethod.POST)) {
-//
-//                String path = getPath(mobileNumber, smsURL, smsText);
-//                String uri = smsURL.getProtocol() + "://" + smsURL.getHost() + ":" + smsURL.getPort() + path;
-//
-//                HttpPost httpPost = new HttpPost(uri);
-//                httpPost.setConfig(requestConfig);
-//                if(isNotEmpty(contentType)) {
-//                    httpPost.addHeader("Content-type", contentType);
-//                }
-//
-//                HttpEntity entity = new ByteArrayEntity(smsText.getBytes("UTF-8"));
-//                httpPost.setEntity(entity);
-//
-//                CloseableHttpResponse response = httpClient.execute(httpPost);
-//                StatusLine sl = response.getStatusLine();
-//                response.close();
-//                if(sl.getStatusCode() != 200) {
-//                    LOGGER.error("SMS code for " + mobileNumber + " could not be sent: " + sl.getStatusCode() +  " - " + sl.getReasonPhrase());
-//                }
-//                return sl.getStatusCode() == 200;
-//            }
-//            return true;
-//        } catch (IOException e) {
-//            LOGGER.error(e);
-//            return false;
-//        } finally {
-//            if(httpClient != null) {
-//                try {
-//                    httpClient.close();
-//                } catch(IOException ignore) {
-//                    // Ignore ...
-//                }
-//            }
-//        }
     }
 
 
@@ -370,27 +277,6 @@ public class KeycloakSmsAuthenticator implements Authenticator {
         path = path.replaceFirst("\\{phonenumber\\}", URLEncoder.encode(mobileNumber, "UTF-8"));
         return path;
     }
-
-//    private CredentialsProvider getCredentialsProvider(String smsUsr, String smsPwd, String proxyUsr, String proxyPwd, URL smsURL, URL proxyURL) {
-//        CredentialsProvider credsProvider = new BasicCredentialsProvider();
-//
-//        // If defined, add BASIC Authentication parameters
-//        if (isNotEmpty(smsUsr) && isNotEmpty(smsPwd)) {
-//            credsProvider.setCredentials(
-//                    new AuthScope(smsURL.getHost(), smsURL.getPort()),
-//                    new UsernamePasswordCredentials(smsUsr, smsPwd));
-//
-//        }
-//
-//        // If defined, add Proxy Authentication parameters
-//        if (isNotEmpty(proxyUsr) && isNotEmpty(proxyPwd)) {
-//            credsProvider.setCredentials(
-//                    new AuthScope(proxyURL.getHost(), proxyURL.getPort()),
-//                    new UsernamePasswordCredentials(proxyUsr, proxyPwd));
-//
-//        }
-//        return credsProvider;
-//    }
 
     private String createMessage(String code, String mobileNumber, AuthenticatorConfigModel config) {
         String text = KeycloakSmsAuthenticatorUtil.getConfigString(config, KeycloakSmsAuthenticatorContstants.CONF_PRP_SMS_TEXT);

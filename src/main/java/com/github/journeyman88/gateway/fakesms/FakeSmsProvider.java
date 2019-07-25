@@ -5,7 +5,6 @@
  */
 package com.github.journeyman88.gateway.fakesms;
 
-import com.github.journeyman88.gateway.smshosting.*;
 import com.github.journeyman88.gateway.GatewayProvider;
 import java.io.IOException;
 import okhttp3.Credentials;
