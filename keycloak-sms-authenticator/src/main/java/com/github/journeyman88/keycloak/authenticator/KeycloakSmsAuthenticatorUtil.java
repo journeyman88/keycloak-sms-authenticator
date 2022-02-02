@@ -1,11 +1,13 @@
 package com.github.journeyman88.keycloak.authenticator;
 
+import java.util.List;
+import java.util.Optional;
 import org.jboss.logging.Logger;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.UserCredentialManager;
 import org.keycloak.models.UserModel;
 
-import java.util.List;
+import java.util.stream.Stream;
 import org.keycloak.credential.CredentialModel;
 import org.keycloak.models.RealmModel;
 
@@ -16,14 +18,9 @@ public class KeycloakSmsAuthenticatorUtil {
 
     private static Logger logger = Logger.getLogger(KeycloakSmsAuthenticatorUtil.class);
 
-    public static String getAttributeValue(UserModel user, String attributeName) {
-        String result = null;
-        List<String> values = user.getAttribute(attributeName);
-        if(values != null && values.size() > 0) {
-            result = values.get(0);
-        }
-
-        return result;
+    public static Optional<String> getAttributeValue(UserModel user, String attributeName) {
+        Stream<String> values = user.getAttributeStream(attributeName);
+        return values.findFirst();
     }
 
 

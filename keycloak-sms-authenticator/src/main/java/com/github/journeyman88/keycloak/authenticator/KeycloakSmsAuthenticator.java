@@ -23,11 +23,9 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Optional;
 import java.util.Random;
 
-/**
- * Created by joris on 11/11/2016.
- */
 public class KeycloakSmsAuthenticator implements Authenticator {
 
     private static final Logger LOGGER = Logger.getLogger(KeycloakSmsAuthenticator.class);
@@ -46,8 +44,8 @@ public class KeycloakSmsAuthenticator implements Authenticator {
         if (KeycloakSmsAuthenticatorUtil.getConfigBoolean(context.getAuthenticatorConfig(), KeycloakSmsAuthenticatorContstants.CONF_PRP_SMS_ONCE, false))
         {
             LOGGER.info("Verify once is active.");
-            String once = KeycloakSmsAuthenticatorUtil.getAttributeValue(context.getUser(), KeycloakSmsAuthenticatorContstants.USER_ATTRIBUTE_VALIDATION);
-            retVal = ((once != null) && (once.equalsIgnoreCase("done")));
+            Optional<String> once = KeycloakSmsAuthenticatorUtil.getAttributeValue(context.getUser(), KeycloakSmsAuthenticatorContstants.USER_ATTRIBUTE_VALIDATION);
+            retVal = (once.isPresent() && (once.get().equalsIgnoreCase("done")));
         }
         return retVal;
     }
@@ -75,8 +73,8 @@ public class KeycloakSmsAuthenticator implements Authenticator {
             return;
         }
 
-        String mobileNumber = KeycloakSmsAuthenticatorUtil.getAttributeValue(context.getUser(), mobileNumberAttribute);
-        if(mobileNumber != null) {
+        Optional<String> mobileNumber = KeycloakSmsAuthenticatorUtil.getAttributeValue(context.getUser(), mobileNumberAttribute);
+        if(mobileNumber.isPresent()) {
             // The mobile number is configured --> send an SMS
 
 
@@ -91,7 +89,7 @@ public class KeycloakSmsAuthenticator implements Authenticator {
             String code = getSmsCode(nrOfDigits);
 
             storeSMSCode(context, code, new Date().getTime() + (ttl * 1000)); // s --> ms
-            if (sendSmsCode(mobileNumber, code, context.getAuthenticatorConfig())) {
+            if (sendSmsCode(mobileNumber.get(), code, context.getAuthenticatorConfig())) {
                 Response challenge = context.form().createForm("sms-validation.ftl");
                 context.challenge(challenge);
             } else {
@@ -155,7 +153,7 @@ public class KeycloakSmsAuthenticator implements Authenticator {
             case VALID:
                 if (KeycloakSmsAuthenticatorUtil.getConfigBoolean(context.getAuthenticatorConfig(), KeycloakSmsAuthenticatorContstants.CONF_PRP_SMS_ONCE))
                 {
-                    context.getUser().setAttribute(KeycloakSmsAuthenticatorContstants.USER_ATTRIBUTE_VALIDATION, Arrays.asList(new String [] {"done"}));
+                    context.getUser().setSingleAttribute(KeycloakSmsAuthenticatorContstants.USER_ATTRIBUTE_VALIDATION, "done");
                 }
                 context.success();
                 break;
@@ -170,13 +168,13 @@ public class KeycloakSmsAuthenticator implements Authenticator {
         credentials.setType(KeycloakSmsAuthenticatorContstants.USR_CRED_MDL_SMS_CODE);
         credentials.setValue(code);
         context.getSession().userCredentialManager().updateCredential(context.getRealm(), context.getUser(), credentials);
-        context.getUser().setAttribute(KeycloakSmsAuthenticatorContstants.USR_CRED_MDL_SMS_CODE, Arrays.asList(new String[] {code}));
+        context.getUser().setSingleAttribute(KeycloakSmsAuthenticatorContstants.USR_CRED_MDL_SMS_CODE, code);
 
         credentials = new UserCredentialModel();
         credentials.setType(KeycloakSmsAuthenticatorContstants.USR_CRED_MDL_SMS_EXP_TIME);
-        credentials.setValue((expiringAt).toString());
+        credentials.setValue(expiringAt.toString());
         context.getSession().userCredentialManager().updateCredential(context.getRealm(), context.getUser(), credentials);
-        context.getUser().setAttribute(KeycloakSmsAuthenticatorContstants.USR_CRED_MDL_SMS_EXP_TIME, Arrays.asList(new String[] {(expiringAt).toString()}));
+        context.getUser().setSingleAttribute(KeycloakSmsAuthenticatorContstants.USR_CRED_MDL_SMS_EXP_TIME, expiringAt.toString());
     }
 
 
@@ -191,18 +189,24 @@ public class KeycloakSmsAuthenticator implements Authenticator {
 //        String expectedCode = KeycloakSmsAuthenticatorUtil.getCredentialValue(context.getSession().userCredentialManager(), context.getRealm(), context.getUser(), KeycloakSmsAuthenticatorContstants.USR_CRED_MDL_SMS_CODE);
 //        String expTimeString = KeycloakSmsAuthenticatorUtil.getCredentialValue(context.getSession().userCredentialManager(), context.getRealm(), context.getUser(), KeycloakSmsAuthenticatorContstants.USR_CRED_MDL_SMS_EXP_TIME);
 
-        String expectedCode = KeycloakSmsAuthenticatorUtil.getAttributeValue(context.getUser(), KeycloakSmsAuthenticatorContstants.USR_CRED_MDL_SMS_CODE);
-        String expTimeString = KeycloakSmsAuthenticatorUtil.getAttributeValue(context.getUser(), KeycloakSmsAuthenticatorContstants.USR_CRED_MDL_SMS_EXP_TIME);
+        Optional<String> expectedCode = KeycloakSmsAuthenticatorUtil.getAttributeValue(context.getUser(), KeycloakSmsAuthenticatorContstants.USR_CRED_MDL_SMS_CODE);
+        Optional<String> expTimeString = KeycloakSmsAuthenticatorUtil.getAttributeValue(context.getUser(), KeycloakSmsAuthenticatorContstants.USR_CRED_MDL_SMS_EXP_TIME);
 
-        LOGGER.info("Expected code = " + expectedCode + "    entered code = " + enteredCode);
+        LOGGER.info("Entered code = " + enteredCode);
 
-        if(expectedCode != null) {
-            result = enteredCode.equals(expectedCode) ? CODE_STATUS.VALID : CODE_STATUS.INVALID;
+        if(expectedCode.isPresent()) {
+            LOGGER.info("Expected code = " + expectedCode.get());
+            result = enteredCode.equals(expectedCode.get()) ? CODE_STATUS.VALID : CODE_STATUS.INVALID;
             long now = new Date().getTime();
+            long expiredTime = 0;
+            if (expTimeString.isEmpty())
+            {
+                expiredTime = Long.parseLong(expTimeString.get());
+            }
 
-            LOGGER.debug("Valid code expires in " + (Long.parseLong(expTimeString) - now) + " ms");
+            LOGGER.debug("Valid code expires in " + (expiredTime - now) + " ms");
             if(result == CODE_STATUS.VALID) {
-                if (Long.parseLong(expTimeString) < now) {
+                if (expiredTime < now) {
                     LOGGER.debug("Code is expired !!");
                     result = CODE_STATUS.EXPIRED;
                 }

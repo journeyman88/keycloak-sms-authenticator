@@ -11,13 +11,8 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.provider.ProviderConfigProperty;
 
-import javax.ws.rs.HttpMethod;
 import java.util.ArrayList;
 import java.util.List;
-
-import static com.github.journeyman88.keycloak.authenticator.KeycloakSmsAuthenticatorContstants.AUTH_METHOD_BASIC;
-import static com.github.journeyman88.keycloak.authenticator.KeycloakSmsAuthenticatorContstants.AUTH_METHOD_INMESSAGE;
-
 
 /**
  * Created by joris on 11/11/2016.
