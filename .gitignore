@@ -1,0 +1,8 @@
+/target/
+/gateway-spi/target/
+/keycloak-sms-gateway-spi/target/
+/keycloak-sms-gateway-smshosting/target/
+/sms-gateway-spi/target/
+/sms-gateway-smshosting/target/
+/sms-gateway-comilio/target/
+/sms-gateway-gatewayapi/target/
